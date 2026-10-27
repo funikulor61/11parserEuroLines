@@ -30,32 +30,38 @@ DAYS = ["понедельник", "вторник", "среда", "четвер�
 class euroLines:
     def __init__(self, link, go_from , go_to , year, month , day , proxy, user_agent):      #задаем переменные для класса
         self.link = link
-        self.options = Options()
-        self.proxy = proxy
-        self.parsed = urlparse(self.proxy)  #разбить ссылку на hostname и port
-        self.proxy_host = self.parsed.hostname
-        self.proxy_port = self.parsed.port
-        self.options.set_preference("general.useragent.override", user_agent)
-        self.options.set_preference("network.proxy.type", 1)                            
-        self.options.set_preference("network.proxy.http", self.proxy_host)
-        self.options.set_preference("network.proxy.http_port", int(self.proxy_port))
-        self.options.set_preference("network.proxy.ssl", self.proxy_host)
-        self.options.set_preference("network.proxy.ssl_port", int(self.proxy_port))
-        self.options.set_capability("pageLoadStrategy", "eager")                    #ждем только DOM
-        self.driver = webdriver.Firefox(options = self.options)
-        self.driver.set_page_load_timeout(60)       #ожидание в 60 секунд
-        self.driver.get(self.link)
-        self.links_list = []
         self.go_from = go_from
         self.go_to = go_to
-        self.date_list = []
-        self.date_list_future = []
         self.end_date = datetime(int(year), int(month), int(day)).date()
         self.current_date = datetime.today().date()
         self.username = getpass.getuser()
         self.script_name = os.path.basename(sys.argv[0])    #чтобы узнать какая функция выполняется
         self.rows = []
         self.boundaries = []
+        self.date_list = []
+        self.date_list_future = []
+        self.startBrowser(proxy, user_agent)               #запуск браузера
+
+    def startBrowser(self, proxy, user_agent):
+        self.proxy = proxy
+        self.user_agent = user_agent
+        self.options = Options()
+        self.options.set_preference("general.useragent.override", user_agent)
+
+        if proxy:
+            parsed = urlparse(proxy)
+            self.options.set_preference("network.proxy.type", 1)
+            self.options.set_preference("network.proxy.http", parsed.hostname)
+            self.options.set_preference("network.proxy.http_port", int(parsed.port))
+            self.options.set_preference("network.proxy.ssl", parsed.hostname)
+            self.options.set_preference("network.proxy.ssl_port", int(parsed.port))
+        else:
+            self.options.set_preference("network.proxy.type", 0)
+
+        self.options.set_capability("pageLoadStrategy", "eager")        #ждем только DOM
+        self.driver = webdriver.Firefox(options=self.options)
+        self.driver.set_page_load_timeout(60)       #ожидание в 60 секунд
+        self.driver.get(self.link)
 
     def acceptCockie(self):                 #принятие куки
         logging.info(f"Начало | Пользователь: {self.username} | Скрипт: {self.script_name}")
@@ -67,6 +73,18 @@ class euroLines:
             logging.info(f"cookie-баннер закрыт")
         except TimeoutException:            #если куки не появилось
             logging.info(f"cookie-баннер не найден, пропускаю")
+
+    def changeProxyAndUA(self, proxy, user_agent):
+        logging.info(f"Смена прокси/UA | прокси: {proxy} | UA: {user_agent[:50]}")
+        try:
+            self.driver.quit()
+        except Exception:
+            pass
+        self.startBrowser(proxy, user_agent)
+        time.sleep(3)
+        self.acceptCockie()
+        
+
 
     def generateDates(self):            #создать списки и txt файлы(для наглядности дат)
         logging.info(f"Начало | Пользователь: {self.username} | Скрипт: {self.script_name}")
